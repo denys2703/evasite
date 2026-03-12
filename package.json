@@ -1,0 +1,10 @@
+{
+  "name": "evasite-vehicle-catalog",
+  "version": "1.0.0",
+  "description": "Vehicle catalog synced with Google Sheets",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

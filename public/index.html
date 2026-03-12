@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vehicle Catalog</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <h1>Vehicle Catalog</h1>
+        <p class="subtitle">Google Sheets synced inventory manager</p>
+      </header>
+
+      <main>
+        <section id="catalog-view">
+          <div class="filters" id="filters"></div>
+          <div class="cards" id="vehicle-cards"></div>
+        </section>
+
+        <section id="detail-view" class="hidden">
+          <button id="back-button" class="back-btn">← Back to catalog</button>
+          <div class="detail-card">
+            <div class="detail-head">
+              <h2 id="detail-title"></h2>
+              <div class="status-editor">
+                <label for="detail-status">Status</label>
+                <select id="detail-status"></select>
+              </div>
+            </div>
+            <table class="apple-table" id="detail-table"></table>
+            <h3>Description</h3>
+            <p id="detail-description" class="description"></p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

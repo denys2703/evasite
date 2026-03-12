@@ -1,0 +1,32 @@
+[
+  {
+    "id": "15",
+    "brand": "Audi",
+    "model": "A6",
+    "year": "2022",
+    "vin": "WAUZZZF21NN000015",
+    "status": "Available",
+    "location": "Berlin",
+    "description": "Executive sedan ready for test drive."
+  },
+  {
+    "id": "22",
+    "brand": "Tesla",
+    "model": "Model Y",
+    "year": "2023",
+    "vin": "7SAYGDEE1PF000022",
+    "status": "Needs Scan",
+    "location": "Munich",
+    "description": "Awaiting high-resolution interior scan."
+  },
+  {
+    "id": "37",
+    "brand": "Volvo",
+    "model": "XC60",
+    "year": "2021",
+    "vin": "YV4A22RL6M1000037",
+    "status": "Processing",
+    "location": "Hamburg",
+    "description": "In detailing workflow and quality checks."
+  }
+]
