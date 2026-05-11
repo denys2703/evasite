@@ -18,13 +18,31 @@ def build_parser() -> argparse.ArgumentParser:
         "--corner-smoothing-px",
         type=int,
         default=20,
-        help="Pixel radius for natural corner rounding after rasterization; use 0 to disable",
+        help="Pixel radius for natural geometric corner rounding; use 0 to disable",
     )
     parser.add_argument(
         "--simplify-tolerance-px",
         type=float,
         default=1.5,
         help="Pixel tolerance for removing tiny CAD artifacts before drawing; use 0 to disable",
+    )
+    parser.add_argument(
+        "--material-texture-scale",
+        type=float,
+        default=1.0,
+        help="Main material texture scale: 2.0 makes details larger, 0.5 repeats them more often",
+    )
+    parser.add_argument(
+        "--border-texture-scale",
+        type=float,
+        default=1.0,
+        help="Border texture scale: 2.0 makes details larger, 0.5 repeats them more often",
+    )
+    parser.add_argument(
+        "--supersample",
+        type=int,
+        default=3,
+        help="High-resolution mask multiplier for smoother edges; use 1 to disable",
     )
     parser.add_argument("--workers", type=int, default=None, help="Parallel worker count; use 1 to disable multiprocessing")
     parser.add_argument("--dry-run", action="store_true", help="Print discovered jobs without rendering")
@@ -40,6 +58,9 @@ def main() -> int:
         border_texture=args.border_texture,
         corner_smoothing_px=args.corner_smoothing_px,
         simplify_tolerance_px=args.simplify_tolerance_px,
+        material_texture_scale=args.material_texture_scale,
+        border_texture_scale=args.border_texture_scale,
+        supersample=args.supersample,
         workers=args.workers if args.workers is not None else BatchConfig.workers,
     )
     jobs = discover_jobs(config)

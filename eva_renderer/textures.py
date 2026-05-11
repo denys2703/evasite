@@ -18,11 +18,21 @@ def load_texture(path: Path | None, fallback: str, size: int = 256) -> Image.Ima
     return _eva_texture(size)
 
 
-def tile_texture(texture: Image.Image, size: tuple[int, int], offset: tuple[int, int] = (0, 0)) -> Image.Image:
-    """Repeat ``texture`` into an image of ``size`` without UV stretching."""
+def tile_texture(
+    texture: Image.Image,
+    size: tuple[int, int],
+    offset: tuple[int, int] = (0, 0),
+    texture_scale: float = 1.0,
+) -> Image.Image:
+    """Repeat ``texture`` into an image of ``size`` without UV stretching.
+
+    ``texture_scale`` changes the tile size: ``2.0`` makes texture details twice
+    as large, while ``0.5`` repeats them twice as often.
+    """
 
     width, height = size
     base = Image.new("RGBA", size, (255, 255, 255, 0))
+    texture = _scale_texture(texture, texture_scale)
     tw, th = texture.size
     start_x = -(offset[0] % tw)
     start_y = -(offset[1] % th)
@@ -64,3 +74,13 @@ def _border_texture(size: int) -> Image.Image:
     for x in range(-size, size * 2, 18):
         draw.line((x, 0, x + size, size), fill=(115, 116, 120, 50), width=2)
     return image.filter(ImageFilter.GaussianBlur(0.2))
+
+
+def _scale_texture(texture: Image.Image, texture_scale: float) -> Image.Image:
+    if texture_scale <= 0:
+        texture_scale = 1.0
+    if abs(texture_scale - 1.0) < 1e-6:
+        return texture
+    width = max(1, round(texture.width * texture_scale))
+    height = max(1, round(texture.height * texture_scale))
+    return texture.resize((width, height), Image.Resampling.LANCZOS)

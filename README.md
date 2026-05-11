@@ -30,8 +30,9 @@ Example: `output/Audi_EVA1_art-2_2_driver_passenger.png`.
 - Uses the sibling `Main/` DXF as a high-quality reference for polygonization tolerances on dirty companion files.
 - Renders a `2084 x 2084` px white canvas with `50` px padding and an exact `50` px gap between the driver and passenger mat bodies.
 - Keeps both mats at the same scale and preserves original geometry proportions.
-- Fills shapes with a repeated seamless material texture, applies a `10` px inner textured border, subtle inner shadow/highlight, and a soft studio drop shadow.
-- Simplifies tiny CAD artifacts and rounds rasterized shape corners by `20` px by default, making the mats look softer and more natural.
+- Fills shapes with a repeated seamless material texture, applies a `10` px inner textured border, subtle inner shadow/highlight, an extra rim shadow on the border, and a soft studio drop shadow.
+- Simplifies tiny CAD artifacts, geometrically rounds shape corners by `20` px, and renders masks with `3x` supersampling by default so edges look smoother and less jagged.
+- Supports independent material and border texture scaling without stretching the mat geometry.
 - If texture PNGs are not supplied, deterministic procedural EVA-like fallback textures are generated.
 
 ## Install
@@ -49,7 +50,7 @@ python -m pip install -r requirements.txt
 PowerShell does **not** use the Bash `\` continuation character. Run the command on one line:
 
 ```powershell
-python -m eva_renderer.cli --templates Templates --output output --material-texture textures/eva_black.png --border-texture textures/border_black.png --corner-smoothing-px 20
+python -m eva_renderer.cli --templates Templates --output output --material-texture textures/eva_black.png --border-texture textures/border_black.png --corner-smoothing-px 20 --material-texture-scale 1.0 --border-texture-scale 1.0
 ```
 
 Or split it with PowerShell backticks. The backtick must be the final character on the line, with no spaces after it:
@@ -58,7 +59,9 @@ Or split it with PowerShell backticks. The backtick must be the final character 
 python -m eva_renderer.cli --templates Templates --output output `
   --material-texture textures/eva_black.png `
   --border-texture textures/border_black.png `
-  --corner-smoothing-px 20
+  --corner-smoothing-px 20 `
+  --material-texture-scale 1.0 `
+  --border-texture-scale 1.0
 ```
 
 If you paste only a continuation line such as `--border-texture textures/border_black.png`, PowerShell treats `--` as an operator and raises `MissingExpressionAfterOperator`. Always include the initial `python -m eva_renderer.cli ...` part of the command.
@@ -69,7 +72,9 @@ If you paste only a continuation line such as `--border-texture textures/border_
 python -m eva_renderer.cli --templates Templates --output output \
   --material-texture textures/eva_black.png \
   --border-texture textures/border_black.png \
-  --corner-smoothing-px 20
+  --corner-smoothing-px 20 \
+  --material-texture-scale 1.0 \
+  --border-texture-scale 1.0
 ```
 
 For Windows without multiprocessing or for easier debugging:
@@ -86,7 +91,11 @@ python -m eva_renderer.cli --templates Templates --output output --dry-run
 
 ### Shape smoothing controls
 
-By default, the renderer removes small CAD artifacts with `--simplify-tolerance-px 1.5` and rounds the final mask with `--corner-smoothing-px 20`. Increase `--corner-smoothing-px` for softer corners, or set either option to `0` to disable that step.
+By default, the renderer removes small CAD artifacts with `--simplify-tolerance-px 1.5`, rounds the vector contour with `--corner-smoothing-px 20`, and rasterizes at `--supersample 3` for anti-aliased edges. Increase `--corner-smoothing-px` for softer corners, raise `--supersample` to `4` for even cleaner edges, or set smoothing/simplification to `0` to disable that step.
+
+### Texture scale controls
+
+Use `--material-texture-scale` and `--border-texture-scale` to control visual texture size. `2.0` makes the texture details twice as large, while `0.5` makes the pattern repeat twice as often. These settings only change UV tiling; they do not stretch the DXF shape.
 
 ### Troubleshooting
 

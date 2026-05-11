@@ -18,7 +18,11 @@ class BatchConfig:
     border_texture: Path | None = None
     corner_smoothing_px: int = 20
     simplify_tolerance_px: float = 1.5
+    material_texture_scale: float = 1.0
+    border_texture_scale: float = 1.0
+    supersample: int = 3
     workers: int = max(cpu_count() - 1, 1)
+
 
 @dataclass(frozen=True)
 class RenderJob:
@@ -121,6 +125,9 @@ def _make_render_config(render_config_cls: type, config: BatchConfig) -> object:
         "border_texture": config.border_texture,
         "corner_smoothing_px": config.corner_smoothing_px,
         "simplify_tolerance_px": config.simplify_tolerance_px,
+        "material_texture_scale": config.material_texture_scale,
+        "border_texture_scale": config.border_texture_scale,
+        "supersample": config.supersample,
     }
     try:
         supported = {field.name for field in fields(render_config_cls)}

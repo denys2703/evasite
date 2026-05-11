@@ -18,6 +18,9 @@ GAP = 50
 BORDER_PX = 10
 CORNER_SMOOTHING_PX = 20
 SIMPLIFY_TOLERANCE_PX = 1.5
+MATERIAL_TEXTURE_SCALE = 1.0
+BORDER_TEXTURE_SCALE = 1.0
+SUPERSAMPLE = 3
 SHADOW_MARGIN = 90
 
 
@@ -29,6 +32,9 @@ class RenderConfig:
     border_px: int = BORDER_PX
     corner_smoothing_px: int = CORNER_SMOOTHING_PX
     simplify_tolerance_px: float = SIMPLIFY_TOLERANCE_PX
+    material_texture_scale: float = MATERIAL_TEXTURE_SCALE
+    border_texture_scale: float = BORDER_TEXTURE_SCALE
+    supersample: int = SUPERSAMPLE
     material_texture: Path | None = None
     border_texture: Path | None = None
 
@@ -79,31 +85,36 @@ def render_single(
 ) -> RenderedMat:
     """Render one contour with repeated material, inner border, embossing, and shadow."""
 
-    polygon = _simplify_polygon(polygon, scale, config.simplify_tolerance_px)
+    polygon = _prepare_polygon(polygon, scale, config)
     minx, miny, maxx, maxy = polygon.bounds
     body_width = max(1, round((maxx - minx) * scale))
     body_height = max(1, round((maxy - miny) * scale))
     image_size = (body_width + SHADOW_MARGIN * 2, body_height + SHADOW_MARGIN * 2)
-    mask = Image.new("L", image_size, 0)
-    draw = ImageDraw.Draw(mask)
-    _draw_polygon(draw, polygon, scale, SHADOW_MARGIN, SHADOW_MARGIN)
-    mask = _smooth_mask(mask, config.corner_smoothing_px)
+
+    mask = _raster_mask(polygon, scale, image_size, config.supersample)
 
     shadow = _drop_shadow(mask)
-    material = tile_texture(material_texture, image_size, (round(minx * scale), round(miny * scale)))
+    material = tile_texture(
+        material_texture,
+        image_size,
+        (round(minx * scale), round(miny * scale)),
+        texture_scale=config.material_texture_scale,
+    )
     material.putalpha(mask)
 
     border_mask = _inner_border_mask(mask, config.border_px)
-    border = tile_texture(border_texture, image_size)
+    border = tile_texture(border_texture, image_size, texture_scale=config.border_texture_scale)
     border.putalpha(border_mask)
 
     inner_shadow = _inner_shadow(mask)
+    border_shadow = _border_inner_shadow(mask, config.border_px)
     highlight = _inner_highlight(mask)
 
     result = Image.new("RGBA", image_size, (255, 255, 255, 0))
     result.alpha_composite(shadow)
     result.alpha_composite(material)
     result.alpha_composite(inner_shadow)
+    result.alpha_composite(border_shadow)
     result.alpha_composite(highlight)
     result.alpha_composite(border)
     return RenderedMat(result, (body_width, body_height), (SHADOW_MARGIN, SHADOW_MARGIN))
@@ -117,6 +128,12 @@ def _pair_scale(driver: Contour, passenger: Contour, config: RenderConfig) -> fl
     return min(width_scale, height_scale)
 
 
+def _prepare_polygon(polygon: Polygon, scale: float, config: RenderConfig) -> Polygon:
+    polygon = _simplify_polygon(polygon, scale, config.simplify_tolerance_px)
+    polygon = _round_polygon_corners(polygon, scale, config.corner_smoothing_px)
+    return polygon
+
+
 def _simplify_polygon(polygon: Polygon, scale: float, tolerance_px: float) -> Polygon:
     """Remove tiny CAD artifacts using a pixel-based tolerance before rasterization."""
 
@@ -126,14 +143,31 @@ def _simplify_polygon(polygon: Polygon, scale: float, tolerance_px: float) -> Po
     return simplified if isinstance(simplified, Polygon) and not simplified.is_empty else polygon
 
 
-def _smooth_mask(mask: Image.Image, radius_px: int) -> Image.Image:
-    """Round sharp mask corners in pixel space while keeping a crisp product edge."""
+def _round_polygon_corners(polygon: Polygon, scale: float, radius_px: int) -> Polygon:
+    """Round sharp contour corners geometrically before drawing."""
 
-    if radius_px <= 0:
+    if radius_px <= 0 or scale <= 0:
+        return polygon
+    radius = radius_px / scale
+    try:
+        rounded = polygon.buffer(radius, join_style=1).buffer(-radius, join_style=1)
+        rounded = rounded.buffer(-radius * 0.55, join_style=1).buffer(radius * 0.55, join_style=1)
+    except Exception:
+        return polygon
+    return rounded if isinstance(rounded, Polygon) and not rounded.is_empty else polygon
+
+
+def _raster_mask(polygon: Polygon, scale: float, image_size: tuple[int, int], supersample: int) -> Image.Image:
+    """Draw the mask at high resolution and downsample for anti-aliased edges."""
+
+    ss = max(int(supersample), 1)
+    high_size = (image_size[0] * ss, image_size[1] * ss)
+    mask = Image.new("L", high_size, 0)
+    draw = ImageDraw.Draw(mask)
+    _draw_polygon(draw, polygon, scale * ss, SHADOW_MARGIN * ss, SHADOW_MARGIN * ss)
+    if ss == 1:
         return mask
-    blur_radius = max(radius_px / 2.0, 0.1)
-    rounded = mask.filter(ImageFilter.GaussianBlur(blur_radius))
-    return rounded.point(lambda p: 255 if p >= 128 else 0)
+    return mask.resize(image_size, Image.Resampling.LANCZOS)
 
 
 def _draw_polygon(draw: ImageDraw.ImageDraw, polygon: Polygon, scale: float, ox: int, oy: int) -> None:
@@ -155,6 +189,19 @@ def _drop_shadow(mask: Image.Image) -> Image.Image:
 def _inner_border_mask(mask: Image.Image, width: int) -> Image.Image:
     eroded = mask.filter(ImageFilter.MinFilter(width * 2 + 1))
     return ImageChops.subtract(mask, eroded)
+
+
+def _border_inner_shadow(mask: Image.Image, border_width: int) -> Image.Image:
+    """Add depth immediately inside the border so the rim does not look flat."""
+
+    inner = mask.filter(ImageFilter.MinFilter(max(border_width * 2 + 1, 3)))
+    deeper_inner = mask.filter(ImageFilter.MinFilter(max(border_width * 4 + 1, 5)))
+    rim = ImageChops.subtract(inner, deeper_inner)
+    offset_rim = ImageChops.offset(rim, 3, 4).filter(ImageFilter.GaussianBlur(max(border_width / 2, 2)))
+    alpha = ImageChops.multiply(offset_rim, mask).point(lambda p: int(p * 0.36))
+    shadow = Image.new("RGBA", mask.size, (0, 0, 0, 0))
+    shadow.putalpha(alpha)
+    return shadow
 
 
 def _inner_shadow(mask: Image.Image) -> Image.Image:
