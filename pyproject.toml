@@ -1,0 +1,17 @@
+[project]
+name = "eva-dxf-renderer"
+version = "0.7.8"
+description = "Batch renderer for premium EVA automotive mat visuals from DXF templates."
+requires-python = ">=3.10"
+dependencies = [
+  "ezdxf>=1.3",
+  "shapely>=2.0",
+  "numpy>=1.24",
+  "Pillow>=10.0",
+  "opencv-python>=4.8",
+  "PySide6>=6.6",
+]
+
+[project.scripts]
+eva-render = "eva_renderer.cli:main"
+eva-render-gui = "eva_renderer.gui:main"
